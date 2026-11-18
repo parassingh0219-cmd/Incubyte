@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("HR_MANAGER")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Country {
+  id        String     @id @default(cuid())
+  code      String     @unique
+  name      String
+  employees Employee[]
+}
+
+model Department {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  employees Employee[]
+}
+
+model Employee {
+  id               String            @id @default(cuid())
+  employeeId       String            @unique
+  firstName        String
+  lastName         String
+  email            String            @unique
+  departmentId     String
+  department       Department        @relation(fields: [departmentId], references: [id])
+  designation      String
+  countryId        String
+  country          Country           @relation(fields: [countryId], references: [id])
+  currency         String
+  joiningDate      DateTime
+  employmentStatus String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  salaries         SalaryRecord[]
+  revisions        SalaryRevision[]
+
+  @@index([countryId])
+  @@index([departmentId])
+  @@index([employmentStatus])
+  @@index([lastName, firstName])
+}
+
+model SalaryRecord {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  baseSalary   Decimal
+  bonus        Decimal
+  allowances   Decimal
+  deductions   Decimal
+  currency     String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  revisions    SalaryRevision[]
+
+  @@index([employeeId, effectiveFrom])
+  @@index([currency])
+}
+
+model SalaryRevision {
+  id                    String       @id @default(cuid())
+  salaryRecordId        String
+  salaryRecord          SalaryRecord @relation(fields: [salaryRecordId], references: [id])
+  employeeId            String
+  employee              Employee     @relation(fields: [employeeId], references: [id])
+  changedByUserId       String
+  previousBaseSalary    Decimal?
+  previousBonus         Decimal?
+  previousAllowances    Decimal?
+  previousDeductions    Decimal?
+  newBaseSalary         Decimal
+  newBonus              Decimal
+  newAllowances         Decimal
+  newDeductions         Decimal
+  effectiveFrom         DateTime
+  changedAt             DateTime     @default(now())
+
+  @@index([employeeId, changedAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  entityType String
+  entityId   String
+  action     String
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+}
